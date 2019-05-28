@@ -1,48 +1,158 @@
-동기는 무엇인가?
-지리정보 시스템(GIS)는 데이터베이스의 CRUD(create , read, update, delete)의 관리가 체계적으로 만들어져야 한다. 실세계의 지리정보를 실시간으로 반영되기 위해서는 다수의 트랜잭션이 지리정보 데이이터베이스의 접근을 하여 데이터를 수정, 저장하여야 한다. 이에 따라 트랜잭션의 체계적인 기법이 필요하다.
-
-무엇이 주된 이슈인가?
-지리정보 시스템의 데이터베이스의 객체에 대한 동기화가 원할이 이루어 져아한다. 하지만 객체를 수정하기 위해서는 다수의 트랜잭션이 접근하여 수정 하여야 하는데 이는 많은 대기시간이 초래될수 있다. 각 트랜잭션의 대기시간이 최소화 되어야 하는데, 객체의 일부분에 대하여 잠금을 설정하여 큰객채에 대한 동시성 제어의 단위를 부분객체 단위로 제한함으로써 동시성을 높이려고 한다.
-
-어떻게 문제에 접근했나?
-객체 부분잠금 기법을 통하여 해결하려고 한다.
-1. 큰 객체 O1,O2가 존재 한다고 하면 부분객체 정의한다.
-   - O1{a0,a1...}, O2{a2,a3...}로 부분객체로 정의 
-
-2. 큰객체 잠금모두 PX와 PR을 제시하고 부분 객체의 수정 트랜잰셕 동시성 제어 제시
-   - PX는 부분객체에 대하여 큰객체를 잠금하는 배타적 잠금
-   - PR은 공의도 잠금이며 큰객체의 부분 객체를 수정하고하는 경우 큰객체에 대하여 PR잠금 여부를 확인하여 한다.
-   
-3. PR lock 을 이용하여 부분객체의 동시성 제어 제시
-   - PX 잠금으로 설정된 객체에 대해 영역침범이 불가. 하여 수정충돌은 PX 잠금 충돌시에만 일어남
-   - 부분잠금 알고리즘 제시, 논문의 그림8, 그림9 와 같이 PX잠금은 PR잠금을 검사에 기반하여
-     잠금 요청을 적절하게 거부.
-
-문제점과 개선 방안은 무엇인가?
-지리정보시스템의 기하속성에 대한 갱신작업을 진행할때 트랜잭션간의 대기로 인해 대기시간이 초래된다.
-본논문에의 기법으로 통하여 갱신 작업동시성을 향상시킨다. 여러 클라이언트의 트랜잭션 동시성을 높이고 작업의 효율성을 증가 시켰다. 하지만 부분객체의 적절한 파악을 해야하는 어려움이 존재 하며 큰객체의 구성 요소인 좌표를 일일 조사해야하는 문제점이 존재한다.
-
------------------------------------------------------------------------------------------------------------------------------
+#%% 
 
 
-지리정보 시스템(GIS)는 데이터베이스의 CRUD(create , read, update, delete)의 관리가 체계적으로 만들어져야 합니다. 실세계의 지리정보를 실시간으로 반영되기 위해서는 다수의 트랜잭션이 지리정보 데이이터베이스의 접근을 하여 데이터를 수정, 저장하여야 하며 이에 따라 트랜잭션의 체계적인 기법이 필요합니다. 데이터베이스의 객체에 대한 동기화가 원할이 이루어저야 하지만 객체를 수정하기 위해서는 다수의 트랜잭션이 접근하여 수정 하여야 하는데 이는 많은 대기시간이 초래될수 있습니다. 
-각 트랜잭션의 대기시간이 최소화 되어야 하는합니다. 이논문에서는 객체의 일부분에 대하여 잠금을 설정하여 큰객채에 대한 동시성 제어의 단위를 부분객체 단위로 제한함으로써 동시성을 높이려고 합니다.
-그에따라 아래와 같은 연구 방법으로 객체 부분잠금 기법을 통하여 해결하려고 하였습니다.
+# import packages
+import numpy as np
+import keras
+import time
+import os
+from keras.utils import to_categorical
+from keras.models import Sequential
+from keras.layers import Dense, Conv2D, Flatten, MaxPool2D, BatchNormalization, Dropout
+import matplotlib.pyplot as plt
 
-1. 큰 객체 O1,O2가 존재 한다고 하면 부분객체 정의한다.
-   - O1{a0,a1...}, O2{a2,a3...}로 부분객체로 정의 
-
-2. 큰객체 잠금모두 PX와 PR을 제시하고 부분 객체의 수정 트랜잰셕 동시성 제어 제시
-   - PX는 부분객체에 대하여 큰객체를 잠금하는 배타적 잠금
-   - PR은 공의도 잠금이며 큰객체의 부분 객체를 수정하고하는 경우 큰객체에 대하여 PR잠금 여부를 확인하여 한다.
-   
-3. PR lock 을 이용하여 부분객체의 동시성 제어 제시
-   - PX 잠금으로 설정된 객체에 대해 영역침범이 불가. 하여 수정충돌은 PX 잠금 충돌시에만 일어남
-   - 부분잠금 알고리즘 제시, 논문의 그림8, 그림9 와 같이 PX잠금은 PR잠금을 검사에 기반하여
-     잠금 요청을 적절하게 거부.
-
-이논문에 결론은 지리정보시스템의 기하속성에 대한 갱신작업을 진행할때 트랜잭션간의 대기로 인해 대기시간이 초래되는데
-본논문에의 기법으로 통하여 갱신 작업동시성을 향상시켰으며 여러 클라이언트의 트랜잭션 동시성을 높이고 작업의 효율성을 증가 시켰습니다. 하지만 부분객체의 적절한 파악을 해야하는 어려움이 존재 하며 큰객체의 구성 요소인 좌표를 일일 조사해야하는 문제점이 존재합니다.
+from IPython.display import SVG
+from keras.utils.vis_utils import model_to_dot
+from keras.models import load_model
 
 
+
+
+class defaultKeras:
+
+
+    
+
+    def __init__(self):
+        self.vAcc = 0.0
+        self.vLoss = 0.0
+        self.backupModel = ''
+        self.vTar_file = ''
+
+    ## Load dataset
+    def KNOU_DATA(self):
+        img_row = 128
+        img_col = 128
+        # train
+        dataset = np.loadtxt("KNOU_CODE/COIL20_Train.csv", delimiter=',', dtype=np.float32)
+        Xtrn = dataset[:,:-1]  # feature
+        Xtrn = Xtrn/255.0   # scaling [0~255] -> [0~1]
+        Xtrn = Xtrn.reshape(-1, img_row, img_col, 1) ## 16384 사이즈의 이미지를 128x128로 차원 변경
+        Ytrn = dataset[:,-1:].astype(int)  # class label 
+        Ytrn = to_categorical(Ytrn-1) # convert int to one-hot
+
+        # test
+        dataset = np.loadtxt("KNOU_CODE/COIL20_Valid.csv", delimiter=',', dtype=np.float32)
+        Xtst = dataset[:,:-1]  # feature
+        Xtst = Xtst/255.0   # scaling [0~255] -> [0~1]
+        Xtst = Xtst.reshape(-1, img_row, img_col, 1)
+        Ytst = dataset[:,-1:].astype(int)  # class label 
+        Ytst = to_categorical(Ytst-1) # convert int to one-hot
+        return Xtrn, Ytrn, Xtst, Ytst
+
+    # Define CNN using function
+    def KNOU_CNN(self):
+        # create model
+        model = Sequential()
+
+        # alexnet 모델 유사하게 따라함
+        '''
+        model.add(Conv2D(128, kernel_size=3, activation='relu', input_shape=(128,128,1)))
+        model.add(MaxPool2D(pool_size=(2,2)))
+        model.add(BatchNormalization())
+        model.add(Conv2D(64, kernel_size=3, activation='relu'))
+        model.add(MaxPool2D(pool_size=(2,2)))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        model.add(Conv2D(32, kernel_size=3, activation='relu'))
+        model.add(Conv2D(16, kernel_size=3, activation='relu'))
+        model.add(MaxPool2D(pool_size=(2,2)))
+        model.add(Flatten())
+        model.add(Dense(20, activation='softmax'))
+        sgd = keras.optimizers.SGD(lr=0.001, momentum=0.9)
+        model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+        '''
+
+        # 기본모델
+        model.add(Conv2D(128, kernel_size=3, activation='relu', input_shape=(128,128,1)))
+        model.add(MaxPool2D(pool_size=(2,2)))
+        model.add(Conv2D(16, kernel_size=3, activation='relu'))
+        model.add(MaxPool2D(pool_size=(2,2)))
+        model.add(Conv2D(16, kernel_size=3, activation='relu'))
+        model.add(MaxPool2D(pool_size=(2,2)))
+        model.add(Flatten())
+        model.add(Dense(20, activation='softmax'))
+        sgd = keras.optimizers.SGD(lr=0.001, momentum=0.9)
+        model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+
+
+        return model
+
+    # Train and Test    
+    def main(self, pBackupModel):
+        
+        
+        if pBackupModel is None:
+            model = self.KNOU_CNN()  # create model object
+        else:
+            model = pBackupModel
+
+
+        Xtrn, Ytrn, Xtst, Ytst = self.KNOU_DATA()    # load data
+
+        # value for model save
+        tar_path = './RESULT/KNOU_COIL20_CNN_TEST{}'.format(time.strftime("%y%m%d_%H%M%S", time.localtime()))
+        os.makedirs(tar_path)    # make directory for saving model
+        tar_file = tar_path + '/KNOU_COIL20_CNN_TEST.h5'
+        checkpoint = [keras.callbacks.ModelCheckpoint(filepath=tar_file)]
+
+        # training
+        history = model.fit(Xtrn, Ytrn, epochs=1, batch_size=36, callbacks=checkpoint, validation_data=(Xtst, Ytst), shuffle=True)    # train
+        test_info = model.evaluate(Xtst, Ytst, batch_size=36)        # test
+        print("Test: 손실값",test_info[0])
+        print("Test: 예측정확도",test_info[1])
+
+        self.vLoss = test_info[0]
+        self.vAcc = test_info[1]
+
+        self.vTar_file = tar_file
+
+        #SVG(model_to_dot(model, show_shapes=True).create(prog='dot', format='svg'))
+        
+        
+        #yhat = model.predict(Xtst[17,:,:,:])
+        #print('## yhat ##')
+        #print(yhat)
+
+    #h5 load, 저장된 모델을 불러와 평가를 한다.
+    def predictTest(self):
+        self.backupModel = load_model(self.vTar_file)
+        Xtrn, Ytrn, Xtst, Ytst = self.KNOU_DATA()    # load data
+        yhat = self.backupModel.predict(Xtst)
+        print('## 평가 ##')
+        print(yhat)
+
+    # 다시 학습을 한다.
+    def relearning(self):
+        self.backupModel = load_model(self.vTar_file)
+        self.main(self.backupModel)
+
+
+# Run code
+if __name__=='__main__':
+    #main()
+    runCls = defaultKeras()
+    runCls.main(None)
+
+    print('dddd',runCls.vLoss)
+    if runCls.vLoss > 0.2:
+        print('재조정 필요, 한번더 학습')
+        #runCls.main(runCls.loadFile())
+        runCls.relearning()
+        print('재조정후 손실값 : ',runCls.vLoss)
+        runCls.predictTest()
+    else:
+        print('학습 우수 : ',runCls.vLoss)
+        runCls.predictTest()
+        
 
