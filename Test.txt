@@ -16,12 +16,7 @@ from keras.utils.vis_utils import model_to_dot
 from keras.models import load_model
 
 
-
-
 class defaultKeras:
-
-
-    
 
     def __init__(self):
         self.vAcc = 0.0
@@ -56,7 +51,6 @@ class defaultKeras:
         model = Sequential()
 
         # alexnet 모델 유사하게 따라함
-        '''
         model.add(Conv2D(128, kernel_size=3, activation='relu', input_shape=(128,128,1)))
         model.add(MaxPool2D(pool_size=(2,2)))
         model.add(BatchNormalization())
@@ -71,9 +65,10 @@ class defaultKeras:
         model.add(Dense(20, activation='softmax'))
         sgd = keras.optimizers.SGD(lr=0.001, momentum=0.9)
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
-        '''
+
 
         # 기본모델
+        '''
         model.add(Conv2D(128, kernel_size=3, activation='relu', input_shape=(128,128,1)))
         model.add(MaxPool2D(pool_size=(2,2)))
         model.add(Conv2D(16, kernel_size=3, activation='relu'))
@@ -84,7 +79,7 @@ class defaultKeras:
         model.add(Dense(20, activation='softmax'))
         sgd = keras.optimizers.SGD(lr=0.001, momentum=0.9)
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
-
+        '''
 
         return model
 
@@ -107,8 +102,8 @@ class defaultKeras:
         checkpoint = [keras.callbacks.ModelCheckpoint(filepath=tar_file)]
 
         # training
-        history = model.fit(Xtrn, Ytrn, epochs=1, batch_size=36, callbacks=checkpoint, validation_data=(Xtst, Ytst), shuffle=True)    # train
-        test_info = model.evaluate(Xtst, Ytst, batch_size=36)        # test
+        history = model.fit(Xtrn, Ytrn, epochs=20, batch_size=18, callbacks=checkpoint, validation_data=(Xtst, Ytst), shuffle=True)    # train
+        test_info = model.evaluate(Xtst, Ytst, batch_size=18)        # test
         print("Test: 손실값",test_info[0])
         print("Test: 예측정확도",test_info[1])
 
