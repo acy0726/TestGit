@@ -1,1 +1,78 @@
-클라이언트 딥러닝을 이용한 비인증 사용자의 웹사이트 개인화
+<!doctype html>
+<html>
+<head>
+    <title>TF.js Test</title>
+    <script src="tf-layers.js"></script>
+    <script src="tf-core.js"></script>
+    <script src="tf.js"></script>
+    <script type="text/javascript">
+    
+    var idbSupported = false;
+    var db;
+    document.addEventListener("DOMContentLoaded", function(){
+         // indexedDB 지원유무
+        if("indexedDB" in window) {
+            idbSupported = true;
+        }
+        if(idbSupported) {
+      // indexedDB 열기
+            var openRequest = indexedDB.open("test",1);
+            openRequest.onupgradeneeded = function(e) {
+                
+            	var thisDB = e.target.result;
+                // people ObjectStore 생성(테이블이라고 생각하면 될것 같음..)
+                if(!thisDB.objectStoreNames.contains("people")) {
+                    thisDB.createObjectStore("people");
+                }
+            }
+            openRequest.onsuccess = function(e) {
+                console.log("Success!");
+                db = e.target.result;
+            }
+            openRequest.onerror = function(e) {
+                console.log("Error");
+                console.dir(e);
+            }
+        }
+    },false);
+
+		
+    //var transaction = db.transaction(["people"],"readwrite");
+
+    var store = transaction.objectStore("people");
+    
+    var person = {
+         name:'aaa',
+         email:'1',
+         created:new Date()
+     }
+
+     //Perform the add
+     var request = store.add(person,1);
+
+
+
+
+        // 선형회귀 모델 생성
+        const model = tf.sequential();
+        model.add(tf.layers.dense({units: 1, inputShape: [1]}));
+ 
+        // 학습을 위한 준비 : 손실 함수와 최적화 함수를 설정
+        model.compile({loss: 'meanSquaredError', optimizer: 'sgd'});
+ 
+        // 학습 데이터 생성
+        const xs = tf.tensor2d([1, 2, 3, 4], [4, 1]);
+        const ys = tf.tensor2d([1, 2, 3, 4], [4, 1]);
+ 
+        // 데이터를 사용해서 학습
+        model.fit(xs, ys).then(() => {
+            // 학습된 모델을 가지고 추론
+            model.predict(tf.tensor2d([2], [1, 1])).print();
+
+        });
+    </script>
+</head>
+<body>
+    콘솔을 확인하세요.1
+</body>
+</html>
