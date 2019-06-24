@@ -1,4 +1,4 @@
-	async function predictfuture(){
+async function predictfuture(){
 
 	   	    ////////////////////////
 	   	    // create fake data
@@ -49,7 +49,8 @@
 	   	    const hidden = tf.layers.lstm({
 	   	        units: 3,
 	   	        activation: 'sigmoid',
-	   	        inputShape: [3 , 1]
+	   	        inputShape: [3 , 1],
+	   	 		returnSequences: true
 	   	    });
 	   	    model.add(hidden);
 
@@ -57,7 +58,8 @@
 	   	    const output = tf.layers.lstm({
 	   	        units: 1,
 	   	        activation: 'sigmoid',
-	   	        inputShape: [1] //optional
+	   	        //inputShape: [1] //optional
+	   	     	returnSequences: true
 	   	    });
 	   	    model.add(output);
 
@@ -79,7 +81,7 @@
 	   	        console.log('Training Complete!');
 	   	        console.log('Creating Prediction...');
 
-	   	        const inputs = tf.tensor2d( [[1],[1],[0]] );
+	   	     	const inputs = tf.tensor3d( [[[1],[1],[0]]] );
 	   	        let outputs = model.predict(inputs);
 	   	        outputs.print();
 
