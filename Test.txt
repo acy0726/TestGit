@@ -1,153 +1,90 @@
-#%% 
+	async function predictfuture(){
+
+	   	    ////////////////////////
+	   	    // create fake data
+	   	    ///////////////////////
+
+	   	    var xs = tf.tensor3d([
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]]
+	   	    ]);
+	   	    xs.print();
+
+	   	    var ys = tf.tensor3d([
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]],
+	   	        [[1],[1],[0]]
+	   	    ]);
+	   	    ys.print();
 
 
-# import packages
-import numpy as np
-import keras
-import time
-import os
-from keras.utils import to_categorical
-from keras.models import Sequential
-from keras.layers import Dense, Conv2D, Flatten, MaxPool2D, BatchNormalization, Dropout
-import matplotlib.pyplot as plt
+	   	    ////////////////////////
+	   	    // create model w/ layers api
+	   	    ///////////////////////
 
-from IPython.display import SVG
-from keras.utils.vis_utils import model_to_dot
-from keras.models import load_model
+	   	    console.log('Creating Model...');
 
+	   	    /*
 
-class defaultKeras:
+	   	    model design:
 
-    def __init__(self):
-        self.vAcc = 0.0
-        self.vLoss = 0.0
-        self.backupModel = ''
-        self.vTar_file = ''
-
-    ## Load dataset
-    def KNOU_DATA(self):
-        img_row = 128
-        img_col = 128
-        # train
-        dataset = np.loadtxt("KNOU_CODE/COIL20_Train.csv", delimiter=',', dtype=np.float32)
-        Xtrn = dataset[:,:-1]  # feature
-        Xtrn = Xtrn/255.0   # scaling [0~255] -> [0~1]
-        Xtrn = Xtrn.reshape(-1, img_row, img_col, 1) ## 16384 사이즈의 이미지를 128x128로 차원 변경
-        Ytrn = dataset[:,-1:].astype(int)  # class label 
-        Ytrn = to_categorical(Ytrn-1) # convert int to one-hot
-
-        # test
-        dataset = np.loadtxt("KNOU_CODE/COIL20_Valid.csv", delimiter=',', dtype=np.float32)
-        Xtst = dataset[:,:-1]  # feature
-        Xtst = Xtst/255.0   # scaling [0~255] -> [0~1]
-        Xtst = Xtst.reshape(-1, img_row, img_col, 1)
-        Ytst = dataset[:,-1:].astype(int)  # class label 
-        Ytst = to_categorical(Ytst-1) # convert int to one-hot
-        return Xtrn, Ytrn, Xtst, Ytst
-
-    # Define CNN using function
-    def KNOU_CNN(self):
-        # create model
-        model = Sequential()
-
-        # alexnet 모델 유사하게 따라함
-        model.add(Conv2D(128, kernel_size=3, activation='relu', input_shape=(128,128,1)))
-        model.add(MaxPool2D(pool_size=(2,2)))
-        model.add(BatchNormalization())
-        model.add(Conv2D(64, kernel_size=3, activation='relu'))
-        model.add(MaxPool2D(pool_size=(2,2)))
-        model.add(BatchNormalization())
-        model.add(Dropout(0.5))
-        model.add(Conv2D(32, kernel_size=3, activation='relu'))
-        model.add(Conv2D(16, kernel_size=3, activation='relu'))
-        model.add(MaxPool2D(pool_size=(2,2)))
-        model.add(Flatten())
-        model.add(Dense(20, activation='softmax'))
-        sgd = keras.optimizers.SGD(lr=0.001, momentum=0.9)
-        model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+	   	                    i(xs)   h       o(ys)
+	   	    batch_size  ->  *       *       * -> batch_size
+	   	    timesteps   ->  *       *       * -> timesteps
+	   	    input_dim   ->  *       *       * -> input_dim
 
 
-        # 기본모델
-        '''
-        model.add(Conv2D(128, kernel_size=3, activation='relu', input_shape=(128,128,1)))
-        model.add(MaxPool2D(pool_size=(2,2)))
-        model.add(Conv2D(16, kernel_size=3, activation='relu'))
-        model.add(MaxPool2D(pool_size=(2,2)))
-        model.add(Conv2D(16, kernel_size=3, activation='relu'))
-        model.add(MaxPool2D(pool_size=(2,2)))
-        model.add(Flatten())
-        model.add(Dense(20, activation='softmax'))
-        sgd = keras.optimizers.SGD(lr=0.001, momentum=0.9)
-        model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
-        '''
+	   	    */
 
-        return model
+	   	    const model = tf.sequential();
 
-    # Train and Test    
-    def main(self, pBackupModel):
-        
-        
-        if pBackupModel is None:
-            model = self.KNOU_CNN()  # create model object
-        else:
-            model = pBackupModel
+	   	    //hidden layer
+	   	    const hidden = tf.layers.lstm({
+	   	        units: 3,
+	   	        activation: 'sigmoid',
+	   	        inputShape: [3 , 1]
+	   	    });
+	   	    model.add(hidden);
 
+	   	    //output layer
+	   	    const output = tf.layers.lstm({
+	   	        units: 1,
+	   	        activation: 'sigmoid',
+	   	        inputShape: [1] //optional
+	   	    });
+	   	    model.add(output);
 
-        Xtrn, Ytrn, Xtst, Ytst = self.KNOU_DATA()    # load data
+	   	    //compile
+	   	    const sgdoptimizer = tf.train.sgd(0.1)
+	   	    model.compile({
+	   	        optimizer: sgdoptimizer,
+	   	        loss: tf.losses.meanSquaredError
+	   	    });
 
-        # value for model save
-        tar_path = './RESULT/KNOU_COIL20_CNN_TEST{}'.format(time.strftime("%y%m%d_%H%M%S", time.localtime()))
-        os.makedirs(tar_path)    # make directory for saving model
-        tar_file = tar_path + '/KNOU_COIL20_CNN_TEST.h5'
-        checkpoint = [keras.callbacks.ModelCheckpoint(filepath=tar_file)]
+	   	    ////////////////////////
+	   	    // train & predict
+	   	    ///////////////////////
 
-        # training
-        history = model.fit(Xtrn, Ytrn, epochs=20, batch_size=18, callbacks=checkpoint, validation_data=(Xtst, Ytst), shuffle=True)    # train
-        test_info = model.evaluate(Xtst, Ytst, batch_size=18)        # test
-        print("Test: 손실값",test_info[0])
-        print("Test: 예측정확도",test_info[1])
+	   	    console.log('Training Model...');
 
-        self.vLoss = test_info[0]
-        self.vAcc = test_info[1]
+	   	    await model.fit(xs, ys, { epochs: 200 }).then(() => {
 
-        self.vTar_file = tar_file
+	   	        console.log('Training Complete!');
+	   	        console.log('Creating Prediction...');
 
-        #SVG(model_to_dot(model, show_shapes=True).create(prog='dot', format='svg'))
-        
-        
-        #yhat = model.predict(Xtst[17,:,:,:])
-        #print('## yhat ##')
-        #print(yhat)
+	   	        const inputs = tf.tensor2d( [[1],[1],[0]] );
+	   	        let outputs = model.predict(inputs);
+	   	        outputs.print();
 
-    #h5 load, 저장된 모델을 불러와 평가를 한다.
-    def predictTest(self):
-        self.backupModel = load_model(self.vTar_file)
-        Xtrn, Ytrn, Xtst, Ytst = self.KNOU_DATA()    # load data
-        yhat = self.backupModel.predict(Xtst)
-        print('## 평가 ##')
-        print(yhat)
+	   	    });
 
-    # 다시 학습을 한다.
-    def relearning(self):
-        self.backupModel = load_model(self.vTar_file)
-        self.main(self.backupModel)
+	   	}
 
-
-# Run code
-if __name__=='__main__':
-    #main()
-    runCls = defaultKeras()
-    runCls.main(None)
-
-    print('dddd',runCls.vLoss)
-    if runCls.vLoss > 0.2:
-        print('재조정 필요, 한번더 학습')
-        #runCls.main(runCls.loadFile())
-        runCls.relearning()
-        print('재조정후 손실값 : ',runCls.vLoss)
-        runCls.predictTest()
-    else:
-        print('학습 우수 : ',runCls.vLoss)
-        runCls.predictTest()
-        
-
+	   	predictfuture();
