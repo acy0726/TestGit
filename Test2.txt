@@ -1,87 +1,180 @@
-#%%
-# import packages
-import numpy as np
-import keras
-import time
-import os
-import pandas as pd
-import time
-import matplotlib.pyplot as plt
-from pandas.tseries.offsets import MonthEnd
-from sklearn.preprocessing import MinMaxScaler
-from keras.layers import LSTM
-from keras.models import Sequential
-from keras.layers import Dense
-import keras.backend as K
-from keras.callbacks import EarlyStopping
-import tensorflowjs as tfjs
-
-## Load dataset
-def KNOU_DATA():
-    # train
-    dataset = pd.read_csv("sample.csv",engine='python')
-    max_a = 5184000
-    min_a = 1
-    min_norm = 0
-    max_norm =1
-    Xtrn = (dataset.date - min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
-
-    Xtrn = Xtrn.values.reshape(-1,1)
-    
-    Ytrn = pd.get_dummies(dataset.search)  #one hot dataframe
-    Ytrn = Ytrn.values
-
+<!doctype html>
+<html>
+<head>
+    <title>TF.js Test</title>
+    <!-- 
+    <script src="tf-layers.js"></script>
+    <script src="tf-core.js"></script>
+    <script src="tf.js"></script>
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
+    <script type="text/javascript">
     
     
+	    const DB_NAME = 'MyTestDatabase';
+	    const DB_VERSION =3; // Use a long long for this value (don't use a float)
+	    const DB_STORE_NAME = 'tables';
+	    var db;
+	    var request = indexedDB.open(DB_NAME,DB_VERSION);
+	    
+	    request.onerror = function(event) {
+	      alert("erorr database");
+	    };
+	    request.onsuccess = function(event) {
+	    	db = request.result;
+	        console.log("openDb DONE");
+	    };
+	    
+	    
+	    request.onupgradeneeded = function(event) { 
+	   	  // Save the IDBDatabase interface 
+	   	  
+	   	  db = event.target.result;
+	   	  // Create an objectStore for this database
+	   	  var objectStore = db.createObjectStore(DB_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+	      objectStore.createIndex("times", "times", { unique: false });
+	      objectStore.createIndex("category", "category", { unique: false });
+	      objectStore.createIndex("etc", "etc", { unique: false });
+	   	};
+	    
+	   	
+	   	function getObjectStore(store_name, mode) {
+	   	    var tx = db.transaction(store_name, mode);
+	   	    return tx.objectStore(store_name);
+	   	}
+	    
+	   	function adds(){
+	   		
+	   		var category = document.getElementById('category').value;
+	   		
+	   		var dt = new Date();
+	   		
+	   		var times = parseInt(dt.getHours())*60*60
+	   		times = times + parseInt(dt.getMinutes())*60
+	   		times = times + parseInt(dt.getSeconds())
+	   		
+	   		
+	   		
+		    var store = getObjectStore(DB_STORE_NAME,'readwrite');
+		    
+		    req = store.add({times:times,category:category,etc:'00'});
+		    
+		    req.onsuccess = function (evt) {
+		        console.log("Insertion in DB successful");
+		      };
+		      req.onerror = function() {
+		        console.error("addPublication error", this.error);
+		        displayActionFailure(this.error);
+		      };
+	   	}
+	   	
+	   	
+	   	function lists(){
+	   		store = getObjectStore(DB_STORE_NAME, 'readonly');
+	   		//req = store.count();
+	   		timeArray = new Array; 	
+	   	    categoryArray = new Array;
+	   		req = store.openCursor();
+	   		
+	   		var i = 0;
+	   	    req.onsuccess = function(evt) {
+	   	    	
+	   	      var cursor = evt.target.result;
+	   	      
+	   	      // If the cursor is pointing at something, ask for the data
+	   	      if (cursor) {
+	   	        console.log("displayPubList cursor:", cursor);
+	   	        req = store.get(cursor.key);
+	   	        req.onsuccess = function (evt) {
+	   	          var value = evt.target.result;
+		   	       console.log("times :", value.times);
+		   	  	   console.log("category :", value.category);
+		   	  		console.log("etc :", value.etc);
+		   	  	timeArray.push(value.times);
+		  	 	 categoryArray.push(value.category);
+		   	  		
+	   	        };
+	   	        // Move on to the next object in store
+	   	        cursor.continue();
+	   	        // This counter serves only to create distinct ids
+	   	   
+	   	        
+	   	      } else {
+	   	       	alert(timeArray);
+	   	     	alert(categoryArray);
+	   	      }
+	   	    
+	   	      
+	   	    };
+	   		
+	   	}
+	   	
+	   	
+	   	
+	   	function tensorSetting(){
+	   		
+	   		
+	   	}
+	   	
+	   	function clearObjectStore() {
+	   	    var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+	   	    var req = store.clear();
+	   	    req.onsuccess = function(evt) {
+	   	      displayActionSuccess("Store cleared");
+	   	      
+	   	    };
+	   	    req.onerror = function (evt) {
+	   	      console.error("clearObjectStore:", evt.target.errorCode);
+	   	   
+	   	    };
+	   	  }
+	   	
+            
+	   	async function initTF() {
+	   		const model = tf.sequential();
+	   		 model.add(tf.layers.dense({units: 10, batchInputShape: [null ,1]}));
+		   	 model.add(tf.layers.dense({units: 10, activation: 'relu'}));
+		   	 model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+				
 
-    # Xtrn = dataset[:,0:1]  # feature
-    # Ytrn = dataset[:,1:]  # class label (one-hot representation)
-    # test
-    # dataset =  pd.read_csv("sample.csv",engine='python')
-    # Xtst = dataset[:,0:1]  # feature
-    # Ytst = dataset[:,1:]  # class label (one-hot representation)
-    Xtst = Xtrn
-    Ytst = Ytrn
+		   	model.compile({optimizer: 'sgd', loss: 'meanSquaredError'});
+		   	
+		   	const history = await model.fit(
+		   			tf.ones([50, 1]), tf.ones([50, 10]), {
+		   	  batchSize: 1,
+		   	  epochs: 1
+		   	});
+		   	
+		   	model.predict(tf.randomNormal([10, 1])).print();
+		   	 
+	   	}
+        
+    </script>
+</head>
+<body>
+ 	<select id="category">
+		<option value='1'>news</option>
+		<option value='2'>shopping</option>
+		<option value='3'>study</option>
+		<option value='4'>sports</option>
+		<option value='5'>job</option>
+		<option value='6'>movie</option>
+		<option value='7'>fishing</option>
+		<option value='8'>food</option>
+		<option value='9'>travel</option>
+		<option value='10'>game</option>
+ 	</select>
+ 	
+	<input type="text" id="stext" value="" />
+	<input type="button" id="search" value="search" onclick="adds()"/>
+	<br/>
+    <input type="button" id="" value="add" onclick="adds()" />
+    <input type="button" id="" value="list" onclick="lists()" />
+    <br>
+     <input type="button" id="" value="clear" onclick="clearObjectStore()"/>
+     
+     <input type="button" id="" value="initTF" onclick="initTF()" />
+      
+     <input type="button" id="" value="politics" />
 
-
-    return Xtrn, Ytrn, Xtst, Ytst
-
-# Define MLP(2-10-2) using function
-def KNOU_MLP():
-    x = keras.layers.Input(shape=(1,))  # input: 1 nodes
-    h = keras.layers.Activation('relu')(keras.layers.Dense(10)(x))  # hidden: 10 nodes
-    y = keras.layers.Activation('softmax')(keras.layers.Dense(10)(h))    # output: 2 nodes
-    model = keras.Model(x, y)
-    model.compile(loss='categorical_crossentropy', optimizer='SGD', metrics=['accuracy'])
-    return model
-
-
-
-
-#%%
-model = KNOU_MLP()
-Xtrn, Ytrn, Xtst, Ytst = KNOU_DATA()
-
-print(Xtrn)
-
-#%%
-# value for model save
-tar_path = './RESULT/KNOU_MLP_{}'.format(time.strftime("%y%m%d_%H%M%S", time.localtime()))
-os.makedirs(tar_path)    # make directory for saving model
-tar_file = tar_path + '/KNOU_MLP_{epoch:03d}_{acc:.4f}_{val_acc:.4f}.h5'
-checkpoint = [keras.callbacks.ModelCheckpoint(filepath=tar_file)]
-
-history = model.fit(Xtrn, Ytrn, epochs=1, batch_size=10, callbacks=checkpoint, validation_split=0.2)    # train
-
-
-tfjs.converters.save_keras_model(model, './RESULT/')
-
-test_info = model.evaluate(Xtst, Ytst, batch_size=2)        # test
-print("Test: Accuracy {:.4}".format(test_info[1]))
-
-yhat = model.predict([[0.99807253]])
-print("result {}".format(yhat))
-
-
-
-#%%
+</html>
