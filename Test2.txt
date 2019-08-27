@@ -23,6 +23,7 @@
 	    request.onsuccess = function(event) {
 	    	db = request.result;
 	        console.log("openDb DONE");
+	        lists();
 	    };
 	    
 	    
@@ -43,17 +44,36 @@
 	   	    return tx.objectStore(store_name);
 	   	}
 	    
+	   	
+	   	function clearObjectStore() {
+	   	    var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+	   	    var req = store.clear();
+	   	    req.onsuccess = function(evt) {
+	   	      displayActionSuccess("Store cleared");
+	   	      
+	   	    };
+	   	    req.onerror = function (evt) {
+	   	      console.error("clearObjectStore:", evt.target.errorCode);
+	   	   
+	   	    };
+	   	  }
+	   	
 	   	function adds(){
 	   		
 	   		var category = document.getElementById('category').value;
 	   		
 	   		var dt = new Date();
 	   		
-	   		var times = parseInt(dt.getHours())*60*60
-	   		times = times + parseInt(dt.getMinutes())*60
-	   		times = times + parseInt(dt.getSeconds())
+	   		
+	   		var times = 0;
+	   		times = parseInt(dt.getSeconds())
+	   		times = times + (parseInt(dt.getMinutes())*60)
+	   		times = times + (parseInt(dt.getHours())*60)*60
 	   		
 	   		
+	   		//times = (times*0.00001).toFixed(5)
+	   		
+	   		times = minmax(times);
 	   		
 		    var store = getObjectStore(DB_STORE_NAME,'readwrite');
 		    
@@ -61,13 +81,26 @@
 		    
 		    req.onsuccess = function (evt) {
 		        console.log("Insertion in DB successful");
+		        
+		        timeArray = new Array; 	
+		   	    categoryArray = new Array;
+		   	    
+		   	 	timeArray.push(times)
+		   	 	categoryArray.push(category)
+		   	 	
+		   	 	
+		   	 	const x = tf.tensor1d(timeArray,'float32');
+	   	  	 	var X = x.reshape([timeArray.length, 1])
+	   	 	 	var Y = tf.oneHot(tf.tensor1d(categoryArray, 'int32'), 10)
+	   	 		initTF(X,Y,"")
+		        
 		      };
 		      req.onerror = function() {
 		        console.error("addPublication error", this.error);
 		        displayActionFailure(this.error);
 		      };
 	   	}
-	   	
+	   		   	
 	   	
 	   	function lists(){
 	   		store = getObjectStore(DB_STORE_NAME, 'readonly');
@@ -87,9 +120,9 @@
 	   	        req = store.get(cursor.key);
 	   	        req.onsuccess = function (evt) {
 	   	          var value = evt.target.result;
-		   	       console.log("times :", value.times);
+		   	       /* console.log("times :", value.times);
 		   	  	   console.log("category :", value.category);
-		   	  		console.log("etc :", value.etc);
+		   	  		console.log("etc :", value.etc); */
 		   	  	timeArray.push(value.times);
 		  	 	 categoryArray.push(value.category);
 		   	  		
@@ -100,8 +133,14 @@
 	   	   
 	   	        
 	   	      } else {
-	   	       	alert(timeArray);
-	   	     	alert(categoryArray);
+	   	       	//alert(timeArray);
+	   	     	//alert(categoryArray);
+	   	     	
+	   	     const x = tf.tensor1d(timeArray,'float32');
+	   	  	 var X = x.reshape([timeArray.length, 1])
+	   	 	 var Y = tf.oneHot(tf.tensor1d(categoryArray, 'int32'), 10)
+	   	 	initTF(X,Y,'init')
+	   	  	 
 	   	      }
 	   	    
 	   	      
@@ -109,72 +148,146 @@
 	   		
 	   	}
 	   	
-	   	
-	   	
-	   	function tensorSetting(){
+	   	async function initTF(X,Y,kind) {
 	   		
-	   		
-	   	}
-	   	
-	   	function clearObjectStore() {
-	   	    var store = getObjectStore(DB_STORE_NAME, 'readwrite');
-	   	    var req = store.clear();
-	   	    req.onsuccess = function(evt) {
-	   	      displayActionSuccess("Store cleared");
-	   	      
-	   	    };
-	   	    req.onerror = function (evt) {
-	   	      console.error("clearObjectStore:", evt.target.errorCode);
-	   	   
-	   	    };
-	   	  }
-	   	
-            
-	   	async function initTF() {
-	   		const model = tf.sequential();
-	   		 model.add(tf.layers.dense({units: 10, batchInputShape: [null ,1]}));
-		   	 model.add(tf.layers.dense({units: 10, activation: 'relu'}));
-		   	 model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
-				
+	   		if (kind == "init"){
+	   			
+	   			const learningRate = 0.1;
+	   			const optimizer = tf.train.sgd(learningRate);
+	   			
+	   			model = tf.sequential();
+	   			model.add(tf.layers.dense({units: 1, batchInputShape: [null ,1]}));
+			   	model.add(tf.layers.dense({units: 3, activation: 'relu'}));
+			   	model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+			   	model.compile({optimizer: optimizer, loss: 'categoricalCrossentropy'});
+			   	const history = await model.fit(
+			   			X, Y, {
+			   	  batchSize: 10,
+			   	  epochs:10,
+			   	});
+			   	
+			   	
+		   	    var pred = model.predict(tf.tensor1d(getTime(),'float32'));
+		   	 	var rs = pred.as1D().argMax()
+		   		document.getElementById('stext').value = resultVal(rs.arraySync());
 
-		   	model.compile({optimizer: 'sgd', loss: 'meanSquaredError'});
+		   	 	
+		   	 	const result = model.evaluate(X, Y, {
+			   	  batchSize: 10,
+			   	});
+			   	result.print();
+		   	 	
+		   	 	
+		   	 	const saveResults = await model.save('indexeddb://category-model');
+	   			
+	   		}else{
+	   			
+	   			const model = await tf.loadLayersModel('indexeddb://category-model');
+	   			model.compile({optimizer: 'sgd', loss: 'categoricalCrossentropy'});
+	   			const history = await model.fit(
+			   			X, Y, {
+			   	  batchSize: 10,
+			   	  epochs: 1,
+			   	});
+			   	
+			   	const saveResults = await model.save('indexeddb://category-model');
+	   		}
+	   		
 		   	
-		   	const history = await model.fit(
-		   			tf.ones([50, 1]), tf.ones([50, 10]), {
-		   	  batchSize: 1,
-		   	  epochs: 1
-		   	});
 		   	
-		   	model.predict(tf.randomNormal([10, 1])).print();
 		   	 
 	   	}
         
+		   			
+	   	async function getCategory(){
+			
+			try{
+				const model = await tf.loadLayersModel('indexeddb://category-model');
+				
+				var dt = new Date();
+				var times = 0;
+		   		times = parseInt(dt.getSeconds())
+		   		times = times + (parseInt(dt.getMinutes())*60)
+		   		times = times + (parseInt(dt.getHours())*60)*60
+		   		timeArray = new Array; 	
+		   		timeArray.push(minmax(times))
+				model.predict(tf.tensor1d(timeArray,'float32')).print();
+				
+			}catch(error){
+				lists()
+			}
+		}
+		
+		
+	   	async function testProc(){
+		   	const loadedModel = await tf.loadLayersModel('indexeddb://category-model');
+		   	console.log('Prediction from loaded model:');
+		   	loadedModel.compile({optimizer: 'sgd', loss: 'categoricalCrossentropy'});
+		   	
+		   	const result = loadedModel.evaluate(tf.ones([1, 1]), tf.ones([1, 10]), {
+		   	  batchSize: 10,
+		   	});
+		   	result.print();
+		   	
+		   	timeArray = new Array;
+	   	 	timeArray.push(minmax(70000))
+		   	loadedModel.predict(tf.tensor1d(timeArray,'float32')).print();
+		
+		}
+
+	   	
+	   	function minmax(val){
+		   	 max_a = 86400
+		     min_a = 1
+		     min_norm = 0
+		     max_norm = 1
+		     return ((val - min_a) / (max_a-min_a)).toFixed(5)
+	   	}
+	   	
+	   	
+	   	function resultVal(val){
+	   		var a = new Array('news','shopping','study','sports','job','movie','fishing','food','travel','game')
+	   		return a[val];
+	   		
+	   	}
+	   	
+	   	
+	   	function getTime(){
+	   		
+	   		var dt = new Date();
+			var times = 0;
+	   		times = parseInt(dt.getSeconds())
+	   		times = times + (parseInt(dt.getMinutes())*60)
+	   		times = times + (parseInt(dt.getHours())*60)*60
+	   		timeArray = new Array; 	
+	   		timeArray.push(minmax(times))
+	   		
+	   		return timeArray
+	   	}
+	   	
     </script>
 </head>
 <body>
  	<select id="category">
-		<option value='1'>news</option>
-		<option value='2'>shopping</option>
-		<option value='3'>study</option>
-		<option value='4'>sports</option>
-		<option value='5'>job</option>
-		<option value='6'>movie</option>
-		<option value='7'>fishing</option>
-		<option value='8'>food</option>
-		<option value='9'>travel</option>
-		<option value='10'>game</option>
+		<option value='0'>news</option>
+		<option value='1'>shopping</option>
+		<option value='2'>study</option>
+		<option value='3'>sports</option>
+		<option value='4'>job</option>
+		<option value='5'>movie</option>
+		<option value='6'>fishing</option>
+		<option value='7'>food</option>
+		<option value='8'>travel</option>
+		<option value='9'>game</option>
  	</select>
  	
 	<input type="text" id="stext" value="" />
 	<input type="button" id="search" value="search" onclick="adds()"/>
-	<br/>
-    <input type="button" id="" value="add" onclick="adds()" />
     <input type="button" id="" value="list" onclick="lists()" />
-    <br>
-     <input type="button" id="" value="clear" onclick="clearObjectStore()"/>
+     <input type="button" id="" value="getCategory" onclick="getCategory()"/>
      
-     <input type="button" id="" value="initTF" onclick="initTF()" />
+     <input type="button" id="" value="testProc" onclick="testProc()" />
+     
+     <input type="button" id="" value="mix" onclick="mix()" />
       
-     <input type="button" id="" value="politics" />
-
 </html>
