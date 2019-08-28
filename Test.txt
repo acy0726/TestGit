@@ -1,22 +1,318 @@
-1. 서  론
-  전 세계적으로 스마트 기기와 PC의 보급률 증가로 웹 사이트 사용자들이 급격하게 증가하고 있다. 웹 사이트 사용자들은 개인 취향에 맞춘 검색, 뉴스, 상품 추천 등 다양한 개인화 서비스를 제공받기 원한다. 웹 사이트 운영 기업들은 이러한 요구사항을 해결하기 위해 사용자들에게 회원가입을 하게하여 개인화 서비스를 제공하고 있다. 현재 이러한 회원가입 방식의 개인화 서비스는 회원가입을 원하지 않는 사용자에게 개인화 서비스를 할 수 없다는 문제점이 있다. 현재 수많은 웹 사이트가 생성이 되고 그에 따라 사용자들은 다양한 웹 사이트를 이용하지만 각각의 사이트마다 회원가입을 해야 한다는 문제점이 있고 기업들이 관리하고 있는 개인정보에 대한 유출사고와 원하지 않는 범위에서 개인정보가 사용되는 거부감으로 인해[1] 회원가입을 원하지 않는 웹 사이트 사용자들이 늘어나고 있다. 이러한 문제점들을 해결하기 위해서는 웹 사이트의 회원가입 없이 비로그인 사용자에게 개인화 서비스를 제공 할 수 있는 방법이 필요하다.
+<!doctype html>
+<html>
+<head>
+    <title>TF.js Test</title>
+    <!-- 
+    <script src="tf-layers.js"></script>
+    <script src="tf-core.js"></script>
+    <script src="tf.js"></script>
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
+    <script type="text/javascript">
+    
+    
+	    const DB_NAME = 'MyTestDatabase';
+	    const DB_VERSION =3; // Use a long long for this value (don't use a float)
+	    const DB_STORE_NAME = 'tables';
+	    var db;
+	    var request = indexedDB.open(DB_NAME,DB_VERSION);
+	    
+	    request.onerror = function(event) {
+	      alert("erorr database");
+	    };
+	    request.onsuccess = function(event) {
+	    	db = request.result;
+	        console.log("openDb DONE");
+	        lists();
+	        //testProc();
+	    };
+	    
+	    
+	    request.onupgradeneeded = function(event) { 
+	   	  // Save the IDBDatabase interface 
+	   	  
+	   	  db = event.target.result;
+	   	  // Create an objectStore for this database
+	   	  var objectStore = db.createObjectStore(DB_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+	      objectStore.createIndex("times", "times", { unique: false });
+	      objectStore.createIndex("category", "category", { unique: false });
+	      objectStore.createIndex("etc", "etc", { unique: false });
+	   	};
+	    
+	   	
+	   	function getObjectStore(store_name, mode) {
+	   	    var tx = db.transaction(store_name, mode);
+	   	    return tx.objectStore(store_name);
+	   	}
+	    
+	   	
+	   	function clearObjectStore() {
+	   	    var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+	   	    var req = store.clear();
+	   	    req.onsuccess = function(evt) {
+	   	      displayActionSuccess("Store cleared");
+	   	      
+	   	    };
+	   	    req.onerror = function (evt) {
+	   	      console.error("clearObjectStore:", evt.target.errorCode);
+	   	   
+	   	    };
+	   	  }
+	   	
+	   	function adds(){
+	   		
+	   		var category = document.getElementById('category').value;
+	   		
+	   		var dt = new Date();
+	   		
+	   		
+	   		var times = 0;
+	   		times = parseInt(dt.getSeconds())
+	   		times = times + (parseInt(dt.getMinutes())*60)
+	   		times = times + (parseInt(dt.getHours())*60)*60
+	   		
+	   		
+	   		//times = (times*0.00001).toFixed(5)
+	   		
+	   		times = minmax(times);
+	   		
+		    var store = getObjectStore(DB_STORE_NAME,'readwrite');
+		    
+		    req = store.add({times:times,category:category,etc:'00'});
+		    
+		    req.onsuccess = function (evt) {
+		        console.log("Insertion in DB successful");
+		        
+		        timeArray = new Array; 	
+		   	    categoryArray = new Array;
+		   	    
+		   	 	timeArray.push(times)
+		   	 	categoryArray.push(category)
+		   	 	
+		   	 	
+		   	 	const x = tf.tensor1d(timeArray,'float32');
+	   	  	 	var X = x.reshape([timeArray.length, 1])
+	   	 	 	var Y = tf.oneHot(tf.tensor1d(categoryArray, 'int32'), 10)
+	   	 		initTF(X,Y,"")
+		        
+		      };
+		      req.onerror = function() {
+		        console.error("addPublication error", this.error);
+		        displayActionFailure(this.error);
+		      };
+	   	}
+	   		   	
+	   	
+	   	function lists(){
+	   		store = getObjectStore(DB_STORE_NAME, 'readonly');
+	   		//req = store.count();
+	   		timeArray = new Array; 	
+	   	    categoryArray = new Array;
+	   		req = store.openCursor();
+	   		
+	   		var i = 0;
+	   	    req.onsuccess = function(evt) {
+	   	    	
+	   	      var cursor = evt.target.result;
+	   	      
+	   	      // If the cursor is pointing at something, ask for the data
+	   	      if (cursor) {
+	   	        console.log("displayPubList cursor:", cursor);
+	   	        req = store.get(cursor.key);
+	   	        req.onsuccess = function (evt) {
+	   	          var value = evt.target.result;
+		   	       /* console.log("times :", value.times);
+		   	  	   console.log("category :", value.category);
+		   	  		console.log("etc :", value.etc); */
+		   	  	timeArray.push(value.times);
+		  	 	 categoryArray.push(value.category);
+		   	  		
+	   	        };
+	   	        // Move on to the next object in store
+	   	        cursor.continue();
+	   	        // This counter serves only to create distinct ids
+	   	   
+	   	        
+	   	      } else {
+	   	       	//alert(timeArray);
+	   	     	//alert(categoryArray);
+	   	     	
+	   	     const x = tf.tensor1d(timeArray,'float32');
+	   	  	 var X = x.reshape([timeArray.length, 1])
+	   	 	 var Y = tf.oneHot(tf.tensor1d(categoryArray, 'int32'), 10)
+	   	 	 initTF(X,Y,'init')
+	   	 	 //initTF(X,Y,'')
+	   	  	 
+	   	      }
+	   	    
+	   	      
+	   	    };
+	   		
+	   	}
+	   	
+	   	async function initTF(X,Y,kind) {
+	   		
+	   		if (kind == "init"){
+	   			
+	   			const learningRate = 0.1;
+	   			const optimizer = tf.train.sgd(learningRate);
+	   			
+	   			model = tf.sequential();
+	   			model.add(tf.layers.dense({units: 1, batchInputShape: [null ,1]}));
+			   	model.add(tf.layers.dense({units: 64, activation: 'relu'}));
+			   	model.add(tf.layers.dense({units: 64, activation: 'relu'}));
+			   	model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+			   	model.compile({optimizer: 'rmsprop', loss: 'categoricalCrossentropy'});
+			   	const history = await model.fit(
+			   			X, Y, {
+			   	  batchSize: 10,
+			   	  epochs:10,
+			   	});
+			   	
+			   	
+		   	    var pred = model.predict(tf.tensor1d(getTime(),'float32'));
+		   	 	var rs = pred.as1D().argMax()
+		   		document.getElementById('stext').value = resultVal(rs.arraySync());
 
-비로그인 웹 사이트 사용자에게 무의식적 개인화 서비스를 제공하기 위해서는 사용자 측면에서 실행되는 개인화 서비스 아키텍처가 구현되어야 한다. 
-사용자 측면에서 개인화 서비스가 실행되면 회원가입의 필요성을 제거 할 수 있으며 기업에게 개인정보 제공을 최소화 할 수 있는 이점이 발생된다. 사용자 측면의 개인화 서비스 구현을 위해서는 사용자가 웹 사이트를 접속 하였을 때 실행되는 객체기반 클라이언트 스크립트 언어 JAVASCRIPT(JS) 기반 구현이 필요하다. JS는 웹 브라우저 내에 다양한 구현 기능을 제공하며 많은 수의 검증된 라이브러리를 지원한다. 그리고 사용자의 웹 사이트 이용 패턴을 학습하기 위해서는 클라이언트 기반 딥러닝(deeplearning) 구현이 필요하다.
+		   	 	
+		   	 	const result = model.evaluate(X, Y, {
+			   	  batchSize: 10,
+			   	});
+			   	 result.print();
+		   	 	
+		   	 	
+		   	 	const saveResults = await model.save('indexeddb://category-model');
+	   			
+	   		}else{
+	   			
+	   			const model = await tf.loadLayersModel('indexeddb://category-model');
+	   			model.compile({optimizer: 'rmsprop', loss: 'categoricalCrossentropy'});
+	   			const history = await model.fit(
+			   			X, Y, {
+			   	  batchSize: 10,
+			   	  epochs: 10,
+			   	});
+	   			
+	   			const result = model.evaluate(X, Y, {
+				   	  batchSize: 10,
+				   	});
+			   	 	
+			   	 result.print();
+			   	
+			   	const saveResults = await model.save('indexeddb://category-model');
+	   		}
+	   		
+		   	
+		   	
+		   	 
+	   	}
+        
+		   			
+	   	async function getCategory(){
+			
+			try{
+				const model = await tf.loadLayersModel('indexeddb://category-model');
+				
+				var dt = new Date();
+				var times = 0;
+		   		times = parseInt(dt.getSeconds())
+		   		times = times + (parseInt(dt.getMinutes())*60)
+		   		times = times + (parseInt(dt.getHours())*60)*60
+		   		timeArray = new Array; 	
+		   		timeArray.push(minmax(times))
+				model.predict(tf.tensor1d(timeArray,'float32')).print();
+				
+			}catch(error){
+				lists()
+			}
+		}
+		
+		
+	   	async function testProc(){
+		   	const loadedModel = await tf.loadLayersModel('indexeddb://category-model');
+		   	console.log('Prediction from loaded model:');
+		   	loadedModel.compile({optimizer: 'rmsprop', loss: 'categoricalCrossentropy'});
+	   	 	
+	   	 	var pred = loadedModel.predict(tf.tensor1d(getTime(),'float32'));
+	   	 	var rs = pred.as1D().argMax()
+	   		document.getElementById('stext').value = resultVal(rs.arraySync());
+	   	 	
+	   	 	
+	   	 	/* Y	= tf.oneHot(tf.tensor1d([1], 'int32'), 10)
+	   	 	alert(Y);
+	   	 	
+	   	 	const result = loadedModel.evaluate(tf.tensor1d(getTime(),'float32'), Y, {
+		   	  batchSize: 10,
+		   	});
+		   	 result.print(); */
+		
+		}
 
-본 논문에서는 JS기반 딥러닝 라이브러리 Tensorflow.js(TFJS)를 사용하여 검색 카테고리 추천 시스템을 구현하여 웹 사이트 개인화 방안을 제시한다. 비로그인 사용자의 검색 카테고리 선택 정보를 검색 창에 미리 제시함으로써 개인화 서비스를 제공한다. W3C가 권고한 웹 브라우저 표준 데이터베이스 Indexed Database를 이용하여 사용자의 검색 카테고리 선택 정보와 검색한 시간정보를 저장하고 저장된 정보를 TFJS로 구현한 신경망을 통해 웹 사이트에 접속한 시간과 과거의 비슷한 시간대의 검색 카테고리 선택 정보를 학습하여 사용자가 높은 확률로 선택하게 될 검색 카테고리 정보를 검색 창에 제공한다.
-
-본 논문의 구성은 2장에 관련연구를 설명하고 3장에서는 검색 카테고리 추천 시스템을 설명한다. 4장에서는 실험 결과를 보여주며 5장에서는 결론을 나타낸다.
-
-
-
-1. The role of HTML5 IndexedDB, the past, present and future
-
-
-2.1 웹 브라우저기반 머시런닝
-
-2.2 딥러닝 개인화 모델
-
-2.3 Indexed Database API
-The role of HTML5 IndexedDB, the past, present and future, 
-Stefan Kimak , ICITST, 14-16 Dec. 2015
+	   	
+	   	function minmax(val){
+		   	 max_a = 86400
+		     min_a = 1
+		     min_norm = 0
+		     max_norm = 1
+		     return ((val - min_a) / (max_a-min_a)).toFixed(5)
+	   	}
+	   	
+	   	
+	   	function resultVal(val){
+	   		
+	   		
+	   		document.getElementById('category').selectedIndex = val;
+	   		
+	   		var a = new Array('news','shopping','study','sports','job','movie','fishing','food','travel','game')
+	   		return a[val];
+	   		
+	   	}
+	   	
+	   	
+	   	function getTime(){
+	   		
+	   		var dt = new Date();
+			var times = 0;
+	   		times = parseInt(dt.getSeconds())
+	   		times = times + (parseInt(dt.getMinutes())*60)
+	   		times = times + (parseInt(dt.getHours())*60)*60
+	   		timeArray = new Array; 	
+	   		timeArray.push(minmax(times))
+	   		
+	   		return timeArray
+	   	}
+	   	
+	   	function chageLangSelect(){
+	   		
+	   	    var langSelect = document.getElementById("category");
+	   	    document.getElementById('stext').value = langSelect.options[langSelect.selectedIndex].text;
+	   		
+	   	}
+	   	
+    </script>
+</head>
+<body>
+ 	<select id="category"  onchange="chageLangSelect()">
+		<option value='0'>news</option>
+		<option value='1'>shopping</option>
+		<option value='2'>study</option>
+		<option value='3'>sports</option>
+		<option value='4'>job</option>
+		<option value='5'>movie</option>
+		<option value='6'>fishing</option>
+		<option value='7'>food</option>
+		<option value='8'>travel</option>
+		<option value='9'>game</option>
+ 	</select>
+ 	
+	<input type="text" id="stext" value="" />
+	<input type="button" id="search" value="search" onclick="adds()" />
+	
+	<!-- 
+    <input type="button" id="" value="list" onclick="lists()" />
+    <input type="button" id="" value="getCategory" onclick="getCategory()"/>
+    
+    <input type="button" id="" value="testProc" onclick="testProc()" />
+    -->
+     
+</html>
