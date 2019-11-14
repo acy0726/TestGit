@@ -1,1 +1,3 @@
 https://github.com/pbiecek/xai_resources
+
+Causal Learning and Explanation of Deep Neural Networks via Autoencoded Activations
